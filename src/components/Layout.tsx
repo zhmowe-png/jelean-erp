@@ -1,5 +1,6 @@
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useIdleTimeout } from "../hooks/useIdleTimeout";
 
 const NAV = [
   { to: "/", label: "首页" },
@@ -12,6 +13,8 @@ export function Layout() {
   const loc = useLocation();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  useIdleTimeout();
 
   const handleLogout = async () => {
     await signOut();
