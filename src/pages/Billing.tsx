@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { exportBilling } from "../lib/export";
 import type { Customer, DeliveryItem } from "../types";
 import { Printable } from "../components/Printable";
 
@@ -171,12 +172,22 @@ export function Billing() {
             {loading ? "查询中..." : "生成对账单"}
           </button>
           {rows.length > 0 && (
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-            >
-              打印
-            </button>
+            <>
+              <button
+                onClick={() =>
+                  exportBilling(rows, selectedCustomer?.name || "未知客户", yearMonth)
+                }
+                className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              >
+                导出 Excel
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+              >
+                打印
+              </button>
+            </>
           )}
         </div>
         {error && (

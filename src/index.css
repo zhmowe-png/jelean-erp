@@ -1,8 +1,99 @@
 @import "tailwindcss";
 
+/* ============================================
+   打印样式 — 针式打印机 / 黑白输出优化
+   ============================================ */
+
 @media print {
-  body * { visibility: hidden; }
-  .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-  .no-print { display: none !important; }
+  /* Page setup for dot matrix / A5 */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+
+  /* Reset */
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Hide non-print elements */
+  .no-print,
+  nav,
+  aside,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .hidden.print\:block {
+    display: block !important;
+  }
+  .hidden.print\:flex {
+    display: flex !important;
+  }
+  .hidden.print\:table-row {
+    display: table-row !important;
+  }
+
+  /* Delivery note container */
+  .delivery-note {
+    max-width: 100% !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    font-size: 11pt;
+    font-family: "SimSun", "宋体", "Microsoft YaHei", serif;
+    line-height: 1.5;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 10pt;
+  }
+  th, td {
+    padding: 3pt 4pt !important;
+    border-color: black !important;
+  }
+  th {
+    background: #f0f0f0 !important;
+    font-weight: bold;
+  }
+
+  /* Borders */
+  .border,
+  .border-b,
+  .border-t,
+  .border-y,
+  .border-y-2,
+  .border-t-2 {
+    border-color: black !important;
+  }
+
+  /* Monospace for numbers */
+  .font-mono {
+    font-family: "SimSun", "宋体", monospace !important;
+  }
+
+  /* Headers */
+  .delivery-note h1,
+  .delivery-note h2 {
+    margin-top: 0 !important;
+    margin-bottom: 6pt !important;
+  }
+
+  /* Signature area */
+  .delivery-note .signature-area {
+    margin-top: 24pt !important;
+  }
+
+  /* Billing print */
+  .billing-print table {
+    font-size: 9pt;
+  }
 }

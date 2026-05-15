@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Layout } from "./components/Layout";
+import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { CustomerList } from "./pages/CustomerList";
 import { CustomerDetail } from "./pages/CustomerDetail";
@@ -13,17 +16,27 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="customers" element={<CustomerList />} />
-            <Route path="customers/:id" element={<CustomerDetail />} />
-            <Route path="delivery-notes" element={<DeliveryList />} />
-            <Route path="delivery-notes/new" element={<DeliveryForm />} />
-            <Route path="delivery-notes/:id" element={<DeliveryDetail />} />
-            <Route path="billing" element={<Billing />} />
-          </Route>
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="customers" element={<CustomerList />} />
+              <Route path="customers/:id" element={<CustomerDetail />} />
+              <Route path="delivery-notes" element={<DeliveryList />} />
+              <Route path="delivery-notes/new" element={<DeliveryForm />} />
+              <Route path="delivery-notes/:id" element={<DeliveryDetail />} />
+              <Route path="billing" element={<Billing />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
   );

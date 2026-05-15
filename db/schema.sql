@@ -46,4 +46,16 @@ CREATE INDEX IF NOT EXISTS idx_delivery_notes_date ON delivery_notes(delivery_da
 CREATE INDEX IF NOT EXISTS idx_delivery_notes_number ON delivery_notes(delivery_number);
 CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items(delivery_id);
 
--- 注意：此脚本不配置 RLS，请在 Supabase Dashboard 中根据需要配置
+-- ============================================
+-- RLS 策略（可选 - 启用后仅认证用户可访问）
+-- 单用户版本默认不启用 RLS
+-- 如需多用户安全访问，执行以下语句：
+-- ============================================
+
+-- ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE delivery_notes ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE delivery_items ENABLE ROW LEVEL SECURITY;
+
+-- CREATE POLICY "认证用户可读写" ON customers FOR ALL TO authenticated USING (true);
+-- CREATE POLICY "认证用户可读写" ON delivery_notes FOR ALL TO authenticated USING (true);
+-- CREATE POLICY "认证用户可读写" ON delivery_items FOR ALL TO authenticated USING (true);

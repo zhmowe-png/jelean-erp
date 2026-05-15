@@ -23,7 +23,7 @@ export function DeliveryList() {
           setNotes(
             (data || []).map((d) => ({
               ...d,
-              customer: { name: (d as Record<string, unknown>).customers as string || "" },
+              customer: { name: ((d as Record<string, unknown>).customers as { name?: string } | null)?.name || "" },
             } as unknown as DeliveryNote))
           );
         }

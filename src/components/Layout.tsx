@@ -1,4 +1,5 @@
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const NAV = [
   { to: "/", label: "首页" },
@@ -9,6 +10,13 @@ const NAV = [
 
 export function Layout() {
   const loc = useLocation();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -30,6 +38,15 @@ export function Layout() {
             );
           })}
         </nav>
+        <div className="border-t border-slate-700 px-5 py-3">
+          <div className="text-xs text-slate-400 truncate mb-2">{user?.email}</div>
+          <button
+            onClick={handleLogout}
+            className="text-xs text-slate-400 hover:text-white"
+          >
+            退出登录
+          </button>
+        </div>
       </aside>
       <main className="flex-1 overflow-auto p-6">
         <Outlet />

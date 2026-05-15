@@ -14,6 +14,9 @@ dist-ssr
 .env
 .env.local
 
+# Design reference files
+src/templates/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
