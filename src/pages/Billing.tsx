@@ -109,6 +109,7 @@ export function Billing() {
   const selectedCustomer = customers.find(
     (c) => c.id === Number(customerId)
   );
+  const [y, m] = yearMonth.split("-");
 
   if (loadError)
     return <div className="p-8 text-red-500">加载失败：{loadError}</div>;
@@ -118,7 +119,7 @@ export function Billing() {
       <h1 className="text-xl font-bold mb-4">月结对账</h1>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border p-5 mb-4">
+      <div className="no-print bg-white rounded-lg border p-5 mb-4">
         <div className="flex items-end gap-4">
           <div>
             <label className="block text-sm text-gray-600 mb-0.5">
@@ -188,6 +189,19 @@ export function Billing() {
 
       {rows.length > 0 && (
         <div className="bg-white rounded-lg border p-6 print:border-0 print:p-0">
+          {/* Print header */}
+          <div className="hidden print:block mb-4">
+            <h1 className="text-xl font-bold text-center">
+              东莞市佳蓝纸品有限公司
+            </h1>
+            <p className="text-center text-sm mt-1">
+              {y}年{m}月数据-对账单
+            </p>
+            <p className="text-sm mt-2">
+              客户名称：{selectedCustomer?.name}
+            </p>
+          </div>
+
           {/* Screen subtitle */}
           <div className="print:hidden mb-3 text-sm text-gray-600">
             客户：
@@ -212,10 +226,10 @@ export function Billing() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className="border-b border-gray-300 print:border-black">
                   <td className="py-1.5 px-1 text-center">{r.seq}</td>
-                  <td className="py-1.5 px-1 text-center font-mono text-sm">{r.delivery_number}</td>
-                  <td className="py-1.5 px-1 text-center">{r.delivery_date}</td>
+                  <td className="py-1.5 px-1 text-center font-mono">{r.delivery_number}</td>
+                  <td className="py-1.5 px-1 text-center">{r.delivery_date.slice(5)}</td>
                   <td className="py-1.5 px-1 text-center">{r.order_number || ""}</td>
                   <td className="py-1.5 px-1 text-center">{r.material_code || ""}</td>
                   <td className="py-1.5 px-1 text-center">{r.product_name}</td>
