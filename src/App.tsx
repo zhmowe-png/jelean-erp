@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
 import { Dashboard } from "./pages/Dashboard";
 import { CustomerList } from "./pages/CustomerList";
 import { CustomerDetail } from "./pages/CustomerDetail";
@@ -19,6 +20,7 @@ export default function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route
               path="/"
               element={

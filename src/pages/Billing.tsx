@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { exportBilling } from "../lib/export";
 import type { Customer, DeliveryItem } from "../types";
-import { Printable } from "../components/Printable";
 
 interface BillingRow extends DeliveryItem {
   delivery_number: string;
@@ -174,7 +173,7 @@ export function Billing() {
           {rows.length > 0 && (
             <>
               <button
-                onClick={() =>
+                onClick={async () =>
                   exportBilling(rows, selectedCustomer?.name || "未知客户", yearMonth)
                 }
                 className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
@@ -205,8 +204,7 @@ export function Billing() {
       )}
 
       {rows.length > 0 && (
-        <Printable>
-          <div className="bg-white rounded-lg border p-6 print:border-0 print:p-0">
+        <div className="bg-white rounded-lg border p-6 print:border-0 print:p-0">
             {/* Print header */}
             <div className="hidden print:block mb-4">
               <h1 className="text-xl font-bold text-center">
@@ -309,7 +307,6 @@ export function Billing() {
               {total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
             </div>
           </div>
-        </Printable>
       )}
     </div>
   );

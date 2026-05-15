@@ -58,8 +58,8 @@ export function DeliveryDetail() {
   const receiver = note.receiver as string | null;
   const total = items.reduce((s, it) => s + Number(it.amount), 0);
 
-  const handleExport = () => {
-    exportDeliveryNote(items, customer.name || "未知客户", deliveryNumber);
+  const handleExport = async () => {
+    await exportDeliveryNote(items, customer.name || "未知客户", deliveryNumber);
   };
 
   return (

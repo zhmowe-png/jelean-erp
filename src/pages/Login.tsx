@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export function Login() {
@@ -77,10 +77,17 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 mb-4"
           >
             {loading ? "登录中..." : "登 录"}
           </button>
+
+          <p className="text-center text-sm text-gray-500">
+            没有账号？
+            <Link to="/register" className="text-blue-600 hover:underline ml-1">
+              创建账号
+            </Link>
+          </p>
         </form>
       </div>
     </div>
