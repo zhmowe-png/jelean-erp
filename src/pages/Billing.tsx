@@ -91,7 +91,6 @@ export function Billing() {
           noteMap.get(it.delivery_id)?.delivery_date || "",
       }));
 
-      // Sort by delivery_date then delivery_number
       result.sort((a, b) => {
         if (a.delivery_date !== b.delivery_date)
           return a.delivery_date.localeCompare(b.delivery_date);
@@ -110,20 +109,6 @@ export function Billing() {
   const selectedCustomer = customers.find(
     (c) => c.id === Number(customerId)
   );
-  const [y, m] = yearMonth.split("-");
-
-  // Group by delivery note maintaining sorted order
-  const grouped: [string, BillingRow[]][] = [];
-  const seen = new Set<string>();
-  for (const row of rows) {
-    if (!seen.has(row.delivery_number)) {
-      seen.add(row.delivery_number);
-      grouped.push([
-        row.delivery_number,
-        rows.filter((r) => r.delivery_number === row.delivery_number),
-      ]);
-    }
-  }
 
   if (loadError)
     return <div className="p-8 text-red-500">加载失败：{loadError}</div>;
@@ -153,9 +138,7 @@ export function Billing() {
             </select>
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-0.5">
-              月份
-            </label>
+            <label className="block text-sm text-gray-600 mb-0.5">月份</label>
             <input
               type="month"
               className="px-3 py-1.5 border border-gray-300 rounded text-sm w-44 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -205,108 +188,55 @@ export function Billing() {
 
       {rows.length > 0 && (
         <div className="bg-white rounded-lg border p-6 print:border-0 print:p-0">
-            {/* Print header */}
-            <div className="hidden print:block mb-4">
-              <h1 className="text-xl font-bold text-center">
-                {selectedCustomer?.name} — 对账单
-              </h1>
-              <p className="text-center text-sm mt-1">
-                对账周期：{y}年{m}月
-              </p>
-            </div>
-
-            {/* Screen header */}
-            <div className="print:hidden mb-3 text-sm text-gray-600">
-              客户：
-              <span className="font-bold text-gray-900">
-                {selectedCustomer?.name}
-              </span>
-              &nbsp;&nbsp;|&nbsp;&nbsp; 对账周期：{y}年{m}月
-            </div>
-
-            {grouped.map(([dn, grpItems]) => {
-              const dnDate = grpItems[0]?.delivery_date || "";
-              const subTotal = grpItems.reduce(
-                (s, it) => s + Number(it.amount),
-                0
-              );
-              return (
-                <div key={dn} className="mb-4">
-                  <div className="text-sm font-semibold mb-1 text-gray-700">
-                    送货单：{dn} &nbsp; 日期：{dnDate}
-                  </div>
-                  <table className="w-full text-sm border mb-2">
-                    <thead className="bg-gray-100 print:bg-gray-200">
-                      <tr>
-                        <th className="px-3 py-1.5 border text-left">
-                          序号
-                        </th>
-                        <th className="px-3 py-1.5 border text-left">
-                          订单号
-                        </th>
-                        <th className="px-3 py-1.5 border text-left">
-                          料号
-                        </th>
-                        <th className="px-3 py-1.5 border text-left">
-                          品名
-                        </th>
-                        <th className="px-3 py-1.5 border text-right w-20">
-                          数量
-                        </th>
-                        <th className="px-3 py-1.5 border text-right w-24">
-                          单价
-                        </th>
-                        <th className="px-3 py-1.5 border text-right w-28">
-                          金额
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {grpItems.map((it) => (
-                        <tr key={it.id}>
-                          <td className="px-3 py-1 border text-center">
-                            {it.seq}
-                          </td>
-                          <td className="px-3 py-1 border">
-                            {it.order_number || ""}
-                          </td>
-                          <td className="px-3 py-1 border">
-                            {it.material_code || ""}
-                          </td>
-                          <td className="px-3 py-1 border">
-                            {it.product_name}
-                          </td>
-                          <td className="px-3 py-1 border text-right">
-                            {it.quantity}
-                          </td>
-                          <td className="px-3 py-1 border text-right">
-                            {Number(it.unit_price).toFixed(4)}
-                          </td>
-                          <td className="px-3 py-1 border text-right font-mono">
-                            {Number(it.amount).toLocaleString("zh-CN", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="text-right text-sm">
-                    小计：¥
-                    {subTotal.toLocaleString("zh-CN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Grand Total */}
-            <div className="border-t pt-2 text-right font-bold text-lg">
-              合计：¥
-              {total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
-            </div>
+          {/* Screen subtitle */}
+          <div className="print:hidden mb-3 text-sm text-gray-600">
+            客户：
+            <span className="font-bold text-gray-900">
+              {selectedCustomer?.name}
+            </span>
           </div>
+
+          <table className="w-full table-fixed border-collapse text-base">
+            <thead>
+              <tr className="border-y border-black print:border-black">
+                <th className="py-2 px-1 text-center">序号</th>
+                <th className="py-2 px-1 text-center">送货单号</th>
+                <th className="py-2 px-1 text-center">日期</th>
+                <th className="py-2 px-1 text-center">订单号</th>
+                <th className="py-2 px-1 text-center">料号</th>
+                <th className="py-2 px-1 text-center">品名</th>
+                <th className="py-2 px-1 text-center">数量</th>
+                <th className="py-2 px-1 text-center">单价</th>
+                <th className="py-2 px-1 text-center">金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="py-1.5 px-1 text-center">{r.seq}</td>
+                  <td className="py-1.5 px-1 text-center font-mono text-sm">{r.delivery_number}</td>
+                  <td className="py-1.5 px-1 text-center">{r.delivery_date}</td>
+                  <td className="py-1.5 px-1 text-center">{r.order_number || ""}</td>
+                  <td className="py-1.5 px-1 text-center">{r.material_code || ""}</td>
+                  <td className="py-1.5 px-1 text-center">{r.product_name}</td>
+                  <td className="py-1.5 px-1 text-center">{r.quantity}</td>
+                  <td className="py-1.5 px-1 text-center">
+                    {Number(r.unit_price).toFixed(4)}
+                  </td>
+                  <td className="py-1.5 px-1 text-center">
+                    {Number(r.amount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Grand Total */}
+          <div className="text-right mt-2 text-base font-bold border-t-2 border-black pt-2 print:border-black">
+            合&nbsp;&nbsp;计：¥&nbsp;
+            {total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+          </div>
+        </div>
       )}
     </div>
   );

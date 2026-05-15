@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { Customer, DeliveryNote } from "../types";
 
 export function CustomerDetail() {
@@ -10,6 +11,7 @@ export function CustomerDetail() {
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -46,17 +48,41 @@ export function CustomerDetail() {
 
   if (loading) return <div className="p-8 text-gray-500">加载中...</div>;
   if (error) return <div className="p-8 text-red-500">加载失败：{error}</div>;
+  const handleDelete = async () => {
+    if (!customer) return;
+    try {
+      const { error: apiErr } = await supabase
+        .from("customers")
+        .delete()
+        .eq("id", customer.id);
+      if (apiErr) throw new Error(apiErr.message);
+      navigate("/customers");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setShowDelete(false);
+    }
+  };
+
   if (!customer) return <div className="p-8 text-red-500">客户不存在</div>;
 
   return (
     <div>
-      <button
-        onClick={() => navigate(-1)}
-        className="text-sm text-blue-600 hover:underline mb-3 inline-block"
-      >
-        ← 返回
-      </button>
-      <h1 className="text-xl font-bold mb-4">{customer.name}</h1>
+      <div className="flex items-center gap-3 mb-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          ← 返回
+        </button>
+        <h1 className="text-xl font-bold flex-1">{customer.name}</h1>
+        <button
+          onClick={() => setShowDelete(true)}
+          className="px-3 py-1 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50"
+        >
+          删除客户
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-lg border p-4 text-sm space-y-1">
@@ -114,6 +140,14 @@ export function CustomerDetail() {
           </table>
         )}
       </div>
+
+      <ConfirmDialog
+        open={showDelete}
+        title="删除客户"
+        message={`确定要删除客户「${customer.name}」吗？该客户的所有送货单将被永久删除，此操作不可恢复。`}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDelete(false)}
+      />
     </div>
   );
 }

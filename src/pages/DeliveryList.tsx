@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { DeliveryNote } from "../types";
 
 export function DeliveryList() {
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeliveryNote | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,22 @@ export function DeliveryList() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const { error: apiErr } = await supabase
+        .from("delivery_notes")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (apiErr) throw new Error(apiErr.message);
+      setNotes((prev) => prev.filter((n) => n.id !== deleteTarget.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   if (loading) return <div className="p-8 text-gray-500">加载中...</div>;
   if (error) return <div className="p-8 text-red-500">加载失败：{error}</div>;
@@ -78,10 +96,16 @@ export function DeliveryList() {
                   <td className="px-5 py-2">
                     <Link
                       to={`/delivery-notes/${n.id}`}
-                      className="text-blue-600 hover:underline"
+                      className="text-blue-600 hover:underline mr-3"
                     >
                       查看
                     </Link>
+                    <button
+                      onClick={() => setDeleteTarget(n)}
+                      className="text-red-500 hover:underline text-xs"
+                    >
+                      删除
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -89,6 +113,14 @@ export function DeliveryList() {
           </table>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除送货单"
+        message={`确定要删除送货单「${deleteTarget?.delivery_number}」吗？所有明细数据将被永久删除，此操作不可恢复。`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

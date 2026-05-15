@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CustomerModal } from "../components/CustomerModal";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { Customer } from "../types";
 
 export function CustomerList() {
@@ -12,6 +13,7 @@ export function CustomerList() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +55,22 @@ export function CustomerList() {
     setEditing(c);
     setSaveError(null);
     setModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const { error: apiErr } = await supabase
+        .from("customers")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (apiErr) throw new Error(apiErr.message);
+      setCustomers((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   const handleSave = async (data: Partial<Customer>) => {
@@ -141,9 +159,15 @@ export function CustomerList() {
                   <td className="px-5 py-2">
                     <button
                       onClick={() => openEdit(c)}
-                      className="text-blue-600 hover:underline text-xs"
+                      className="text-blue-600 hover:underline text-xs mr-3"
                     >
                       编辑
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(c)}
+                      className="text-red-500 hover:underline text-xs"
+                    >
+                      删除
                     </button>
                   </td>
                 </tr>
@@ -165,6 +189,14 @@ export function CustomerList() {
           {saveError}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除客户"
+        message={`确定要删除客户「${deleteTarget?.name}」吗？该客户的所有送货单将被永久删除，此操作不可恢复。`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

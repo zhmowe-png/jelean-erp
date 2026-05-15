@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { exportDeliveryNote } from "../lib/export";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { DeliveryItem } from "../types";
 
 export function DeliveryDetail() {
@@ -11,6 +12,7 @@ export function DeliveryDetail() {
   const [items, setItems] = useState<DeliveryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -70,6 +72,22 @@ export function DeliveryDetail() {
     });
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      const { error: apiErr } = await supabase
+        .from("delivery_notes")
+        .delete()
+        .eq("id", id);
+      if (apiErr) throw new Error(apiErr.message);
+      navigate("/delivery-notes");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setShowDelete(false);
+    }
+  };
+
   return (
     <div>
       {/* Toolbar */}
@@ -79,6 +97,18 @@ export function DeliveryDetail() {
         </button>
         <h1 className="text-xl font-bold">送货单详情</h1>
         <div className="flex-1" />
+        <Link
+          to={`/delivery-notes/${id}/edit`}
+          className="px-4 py-1.5 bg-orange-500 text-white rounded text-sm hover:bg-orange-600"
+        >
+          编辑
+        </Link>
+        <button
+          onClick={() => setShowDelete(true)}
+          className="px-4 py-1.5 text-red-600 border border-red-300 rounded text-sm hover:bg-red-50"
+        >
+          删除
+        </button>
         <button
           onClick={handleExport}
           className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
@@ -191,6 +221,14 @@ export function DeliveryDetail() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showDelete}
+        title="删除送货单"
+        message={`确定要删除送货单「${deliveryNumber}」吗？所有明细数据将被永久删除，此操作不可恢复。`}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDelete(false)}
+      />
     </div>
   );
 }

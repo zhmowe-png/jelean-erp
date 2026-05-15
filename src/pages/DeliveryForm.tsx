@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import type { Customer } from "../types";
 
@@ -35,17 +35,12 @@ function calcAmount(item: LineItem): number {
   return Math.round(qty * price * 100) / 100;
 }
 
-/**
- * Generate delivery number: YYMM + 3-digit seq
- * Uses range query instead of LIKE for PostgREST compatibility.
- */
 async function generateDeliveryNumber(): Promise<string> {
   const now = new Date();
   const yy = now.getFullYear().toString().slice(2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const prefix = `${yy}${mm}`;
 
-  // next prefix: e.g. "2606" if current is "2605"
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const nextYY = nextMonth.getFullYear().toString().slice(2);
   const nextMM = String(nextMonth.getMonth() + 1).padStart(2, "0");
@@ -70,17 +65,22 @@ async function generateDeliveryNumber(): Promise<string> {
 }
 
 export function DeliveryForm() {
+  const { id } = useParams<{ id: string }>();
+  const isEdit = !!id;
   const navigate = useNavigate();
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
   const [receiver, setReceiver] = useState("");
+  const [existingNumber, setExistingNumber] = useState("");
   const [items, setItems] = useState<LineItem[]>([createItem(1)]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadingData, setLoadingData] = useState(isEdit);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +99,55 @@ export function DeliveryForm() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  // Load existing data in edit mode
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [nRes, iRes] = await Promise.all([
+          supabase.from("delivery_notes").select("*").eq("id", id).single(),
+          supabase.from("delivery_items").select("*").eq("delivery_id", id).order("seq"),
+        ]);
+
+        if (nRes.error) throw new Error(nRes.error.message);
+        if (iRes.error) throw new Error(iRes.error.message);
+
+        if (!cancelled && nRes.data) {
+          const n = nRes.data as Record<string, unknown>;
+          setCustomerId(String(n.customer_id || ""));
+          setDeliveryDate((n.delivery_date as string)?.slice(0, 10) || "");
+          setReceiver((n.receiver as string) || "");
+          setExistingNumber((n.delivery_number as string) || "");
+
+          const existingItems = (iRes.data || []) as Array<Record<string, unknown>>;
+          if (existingItems.length > 0) {
+            setItems(
+              existingItems.map((it, i) => ({
+                key: Date.now() + i,
+                seq: (it.seq as number) || i + 1,
+                order_number: (it.order_number as string) || "",
+                material_code: (it.material_code as string) || "",
+                product_name: (it.product_name as string) || "",
+                quantity: String(it.quantity || ""),
+                unit_price: String(it.unit_price || ""),
+                amount: Number(it.amount) || 0,
+                notes: (it.notes as string) || "",
+              }))
+            );
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "加载送货单失败");
+      } finally {
+        if (!cancelled) setLoadingData(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
 
   function updateItem(key: number, field: keyof LineItem, value: string) {
     setItems((prev) =>
@@ -146,23 +195,38 @@ export function DeliveryForm() {
 
     setSaving(true);
     try {
-      const dn = await generateDeliveryNumber();
+      const dn = isEdit ? existingNumber : await generateDeliveryNumber();
+      const noteData = {
+        customer_id: Number(customerId),
+        delivery_number: dn,
+        delivery_date: deliveryDate,
+        receiver,
+      };
 
-      const { data: note, error: noteErr } = await supabase
-        .from("delivery_notes")
-        .insert({
-          customer_id: Number(customerId),
-          delivery_number: dn,
-          delivery_date: deliveryDate,
-          receiver,
-        })
-        .select("id")
-        .single();
+      let noteId: number;
 
-      if (noteErr) throw new Error("创建送货单失败: " + noteErr.message);
+      if (isEdit) {
+        const { error: updateErr } = await supabase
+          .from("delivery_notes")
+          .update(noteData)
+          .eq("id", id);
+        if (updateErr) throw new Error("更新送货单失败: " + updateErr.message);
+
+        // Replace items: delete old, insert new
+        await supabase.from("delivery_items").delete().eq("delivery_id", id);
+        noteId = Number(id);
+      } else {
+        const { data: note, error: noteErr } = await supabase
+          .from("delivery_notes")
+          .insert(noteData)
+          .select("id")
+          .single();
+        if (noteErr) throw new Error("创建送货单失败: " + noteErr.message);
+        noteId = note.id;
+      }
 
       const rows = filled.map((it) => ({
-        delivery_id: note.id,
+        delivery_id: noteId,
         seq: it.seq,
         order_number: it.order_number || null,
         material_code: it.material_code || null,
@@ -173,17 +237,16 @@ export function DeliveryForm() {
         notes: it.notes || null,
       }));
 
-      const { error: itemsErr } = await supabase
-        .from("delivery_items")
-        .insert(rows);
+      const { error: itemsErr } = await supabase.from("delivery_items").insert(rows);
 
       if (itemsErr) {
-        // Best-effort cleanup of orphaned delivery note
-        await supabase.from("delivery_notes").delete().eq("id", note.id);
+        if (!isEdit) {
+          await supabase.from("delivery_notes").delete().eq("id", noteId);
+        }
         throw new Error("保存明细失败: " + itemsErr.message);
       }
 
-      navigate(`/delivery-notes/${note.id}`);
+      navigate(`/delivery-notes/${noteId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存失败");
       setSaving(false);
@@ -194,12 +257,14 @@ export function DeliveryForm() {
     "w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400";
   const totalAmount = items.reduce((s, it) => s + it.amount, 0);
 
-  if (loadError)
-    return <div className="p-8 text-red-500">加载失败：{loadError}</div>;
+  if (loadingData) return <div className="p-8 text-gray-500">加载送货单数据...</div>;
+  if (loadError) return <div className="p-8 text-red-500">加载失败：{loadError}</div>;
 
   return (
     <div>
-      <h1 className="text-xl font-bold mb-4">新建送货单</h1>
+      <h1 className="text-xl font-bold mb-4">
+        {isEdit ? "编辑送货单" : "新建送货单"}
+      </h1>
 
       {error && (
         <div className="mb-4 px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded text-sm">
@@ -208,7 +273,6 @@ export function DeliveryForm() {
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Header */}
         <div className="bg-white rounded-lg border p-5 mb-4">
           <div className="grid grid-cols-4 gap-4">
             <div>
@@ -230,9 +294,7 @@ export function DeliveryForm() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-0.5">
-                送货日期
-              </label>
+              <label className="block text-sm text-gray-600 mb-0.5">送货日期</label>
               <input
                 type="date"
                 className={inputCls}
@@ -241,19 +303,15 @@ export function DeliveryForm() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-0.5">
-                送货单号
-              </label>
+              <label className="block text-sm text-gray-600 mb-0.5">送货单号</label>
               <input
                 className={inputCls}
-                value="系统自动生成"
+                value={isEdit ? existingNumber : "系统自动生成"}
                 disabled
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-0.5">
-                收货单位及经手人
-              </label>
+              <label className="block text-sm text-gray-600 mb-0.5">收货单位及经手人</label>
               <input
                 className={inputCls}
                 value={receiver}
@@ -286,34 +344,26 @@ export function DeliveryForm() {
             <tbody>
               {items.map((it) => (
                 <tr key={it.key} className="border-t">
-                  <td className="px-3 py-1.5 text-center text-gray-400">
-                    {it.seq}
-                  </td>
+                  <td className="px-3 py-1.5 text-center text-gray-400">{it.seq}</td>
                   <td className="px-3 py-1.5">
                     <input
                       className={inputCls}
                       value={it.order_number}
-                      onChange={(e) =>
-                        updateItem(it.key, "order_number", e.target.value)
-                      }
+                      onChange={(e) => updateItem(it.key, "order_number", e.target.value)}
                     />
                   </td>
                   <td className="px-3 py-1.5">
                     <input
                       className={inputCls}
                       value={it.material_code}
-                      onChange={(e) =>
-                        updateItem(it.key, "material_code", e.target.value)
-                      }
+                      onChange={(e) => updateItem(it.key, "material_code", e.target.value)}
                     />
                   </td>
                   <td className="px-3 py-1.5">
                     <input
                       className={inputCls}
                       value={it.product_name}
-                      onChange={(e) =>
-                        updateItem(it.key, "product_name", e.target.value)
-                      }
+                      onChange={(e) => updateItem(it.key, "product_name", e.target.value)}
                     />
                   </td>
                   <td className="px-3 py-1.5">
@@ -322,9 +372,7 @@ export function DeliveryForm() {
                       step="1"
                       className={`${inputCls} text-right`}
                       value={it.quantity}
-                      onChange={(e) =>
-                        updateItem(it.key, "quantity", e.target.value)
-                      }
+                      onChange={(e) => updateItem(it.key, "quantity", e.target.value)}
                     />
                   </td>
                   <td className="px-3 py-1.5">
@@ -333,15 +381,11 @@ export function DeliveryForm() {
                       step="0.0001"
                       className={`${inputCls} text-right`}
                       value={it.unit_price}
-                      onChange={(e) =>
-                        updateItem(it.key, "unit_price", e.target.value)
-                      }
+                      onChange={(e) => updateItem(it.key, "unit_price", e.target.value)}
                     />
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono">
-                    {it.amount.toLocaleString("zh-CN", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {it.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-3 py-1.5 text-center">
                     {items.length > 1 && (
@@ -371,22 +415,19 @@ export function DeliveryForm() {
               合计：
               <span className="font-bold text-lg">
                 ¥
-                {totalAmount.toLocaleString("zh-CN", {
-                  minimumFractionDigits: 2,
-                })}
+                {totalAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Submit */}
         <div className="flex gap-2">
           <button
             type="submit"
             disabled={saving}
             className="px-6 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
           >
-            {saving ? "保存中..." : "保存送货单"}
+            {saving ? "保存中..." : isEdit ? "保存修改" : "保存送货单"}
           </button>
           <button
             type="button"

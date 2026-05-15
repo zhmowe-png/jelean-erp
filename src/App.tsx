@@ -34,6 +34,7 @@ export default function App() {
               <Route path="customers/:id" element={<CustomerDetail />} />
               <Route path="delivery-notes" element={<DeliveryList />} />
               <Route path="delivery-notes/new" element={<DeliveryForm />} />
+              <Route path="delivery-notes/:id/edit" element={<DeliveryForm />} />
               <Route path="delivery-notes/:id" element={<DeliveryDetail />} />
               <Route path="billing" element={<Billing />} />
             </Route>
