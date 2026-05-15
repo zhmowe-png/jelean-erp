@@ -6,27 +6,39 @@ import type { DeliveryNote } from "../types";
 export function DeliveryList() {
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const fetchNotes = async () => {
-    const { data } = await supabase
-      .from("delivery_notes")
-      .select("id,delivery_number,delivery_date,receiver,customers(name)")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    setNotes(
-      (data || []).map((d: any) => ({
-        ...d,
-        customer: { name: d.customers?.name || "" },
-      }))
-    );
-    setLoading(false);
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchNotes();
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const { data, error: apiErr } = await supabase
+          .from("delivery_notes")
+          .select("id,delivery_number,delivery_date,receiver,customers(name)")
+          .order("created_at", { ascending: false })
+          .limit(100);
+        if (apiErr) throw new Error(apiErr.message);
+        if (!cancelled) {
+          setNotes(
+            (data || []).map((d) => ({
+              ...d,
+              customer: { name: (d as Record<string, unknown>).customers as string || "" },
+            } as unknown as DeliveryNote))
+          );
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "加载失败");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   if (loading) return <div className="p-8 text-gray-500">加载中...</div>;
+  if (error) return <div className="p-8 text-red-500">加载失败：{error}</div>;
 
   return (
     <div>
@@ -64,7 +76,10 @@ export function DeliveryList() {
                   <td className="px-5 py-2">{n.delivery_date}</td>
                   <td className="px-5 py-2">{n.receiver || "-"}</td>
                   <td className="px-5 py-2">
-                    <Link to={`/delivery-notes/${n.id}`} className="text-blue-600 hover:underline">
+                    <Link
+                      to={`/delivery-notes/${n.id}`}
+                      className="text-blue-600 hover:underline"
+                    >
                       查看
                     </Link>
                   </td>

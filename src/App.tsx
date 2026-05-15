@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { CustomerList } from "./pages/CustomerList";
@@ -10,18 +11,20 @@ import { Billing } from "./pages/Billing";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="customers" element={<CustomerList />} />
-          <Route path="customers/:id" element={<CustomerDetail />} />
-          <Route path="delivery-notes" element={<DeliveryList />} />
-          <Route path="delivery-notes/new" element={<DeliveryForm />} />
-          <Route path="delivery-notes/:id" element={<DeliveryDetail />} />
-          <Route path="billing" element={<Billing />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="customers" element={<CustomerList />} />
+            <Route path="customers/:id" element={<CustomerDetail />} />
+            <Route path="delivery-notes" element={<DeliveryList />} />
+            <Route path="delivery-notes/new" element={<DeliveryForm />} />
+            <Route path="delivery-notes/:id" element={<DeliveryDetail />} />
+            <Route path="billing" element={<Billing />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

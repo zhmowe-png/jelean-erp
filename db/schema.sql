@@ -1,13 +1,7 @@
 -- ============================================
--- JeLan 佳蓝纸品 ERP - 初始迁移（已拆分）
--- 此文件为初始版本的完整迁移脚本，已保留仅供历史参考。
---
--- 新架构已将数据库脚本拆分为三个独立文件：
---   db/schema.sql  — 纯表结构，可直接在生产环境执行
---   db/seed.sql    — 测试数据，仅供开发/测试环境使用
---   db/reset.sql   — 重置脚本，仅限开发环境，生产环境严禁执行
---
--- 请使用上述文件替代此脚本。
+-- JeLan 佳蓝纸品 ERP - 数据库表结构
+-- 用途：仅建表，不包含任何数据操作
+-- 在 Supabase SQL Editor 中执行此文件
 -- ============================================
 
 -- 1. 客户表
@@ -51,3 +45,5 @@ CREATE INDEX IF NOT EXISTS idx_delivery_notes_customer ON delivery_notes(custome
 CREATE INDEX IF NOT EXISTS idx_delivery_notes_date ON delivery_notes(delivery_date);
 CREATE INDEX IF NOT EXISTS idx_delivery_notes_number ON delivery_notes(delivery_number);
 CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items(delivery_id);
+
+-- 注意：此脚本不配置 RLS，请在 Supabase Dashboard 中根据需要配置

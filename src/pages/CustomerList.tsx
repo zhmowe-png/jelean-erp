@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CustomerModal } from "../components/CustomerModal";
@@ -8,21 +8,31 @@ export function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-
-  const fetchCustomers = useCallback(async () => {
-    const { data } = await supabase
-      .from("customers")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setCustomers(data || []);
-    setLoading(false);
-  }, []);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+    let cancelled = false;
+    async function load() {
+      try {
+        setError(null);
+        const { data, error: apiErr } = await supabase
+          .from("customers")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (apiErr) throw new Error(apiErr.message);
+        if (!cancelled) setCustomers(data || []);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "加载客户失败");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = search
     ? customers.filter(
@@ -35,25 +45,45 @@ export function CustomerList() {
 
   const openNew = () => {
     setEditing(null);
+    setSaveError(null);
     setModalOpen(true);
   };
 
   const openEdit = (c: Customer) => {
     setEditing(c);
+    setSaveError(null);
     setModalOpen(true);
   };
 
   const handleSave = async (data: Partial<Customer>) => {
-    if (editing) {
-      await supabase.from("customers").update(data).eq("id", editing.id);
-    } else {
-      await supabase.from("customers").insert(data);
+    try {
+      setSaveError(null);
+      if (editing) {
+        const { error: apiErr } = await supabase
+          .from("customers")
+          .update(data)
+          .eq("id", editing.id)
+          .select("*")
+          .single();
+        if (apiErr) throw new Error(apiErr.message);
+        setCustomers((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...data } : c)));
+      } else {
+        const { data: created, error: apiErr } = await supabase
+          .from("customers")
+          .insert(data)
+          .select("*")
+          .single();
+        if (apiErr) throw new Error(apiErr.message);
+        if (created) setCustomers((prev) => [created as Customer, ...prev]);
+      }
+      setModalOpen(false);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "保存失败");
     }
-    setModalOpen(false);
-    fetchCustomers();
   };
 
   if (loading) return <div className="p-8 text-gray-500">加载中...</div>;
+  if (error) return <div className="p-8 text-red-500">加载失败：{error}</div>;
 
   return (
     <div>
@@ -98,7 +128,10 @@ export function CustomerList() {
               filtered.map((c) => (
                 <tr key={c.id} className="border-t hover:bg-gray-50">
                   <td className="px-5 py-2">
-                    <Link to={`/customers/${c.id}`} className="text-blue-600 hover:underline font-medium">
+                    <Link
+                      to={`/customers/${c.id}`}
+                      className="text-blue-600 hover:underline font-medium"
+                    >
                       {c.name}
                     </Link>
                   </td>
@@ -121,11 +154,17 @@ export function CustomerList() {
       </div>
 
       <CustomerModal
+        key={editing?.id ?? "new"}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
         customer={editing}
       />
+      {saveError && (
+        <div className="mt-3 px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded text-sm">
+          {saveError}
+        </div>
+      )}
     </div>
   );
 }

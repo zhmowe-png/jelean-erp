@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Customer } from "../types";
 
 interface Props {
@@ -8,29 +8,19 @@ interface Props {
   customer?: Customer | null;
 }
 
-export function CustomerModal({ open, onClose, onSave, customer }: Props) {
-  const [form, setForm] = useState({
-    name: "",
-    contact: "",
-    phone: "",
-    address: "",
-    billing_day: 25,
-  });
-  const [saving, setSaving] = useState(false);
+function initForm(c: Customer | null | undefined) {
+  return {
+    name: c?.name ?? "",
+    contact: c?.contact ?? "",
+    phone: c?.phone ?? "",
+    address: c?.address ?? "",
+    billing_day: c?.billing_day ?? 25,
+  };
+}
 
-  useEffect(() => {
-    if (customer) {
-      setForm({
-        name: customer.name,
-        contact: customer.contact || "",
-        phone: customer.phone || "",
-        address: customer.address || "",
-        billing_day: customer.billing_day,
-      });
-    } else {
-      setForm({ name: "", contact: "", phone: "", address: "", billing_day: 25 });
-    }
-  }, [customer, open]);
+export function CustomerModal({ open, onClose, onSave, customer }: Props) {
+  const [form, setForm] = useState(() => initForm(customer));
+  const [saving, setSaving] = useState(false);
 
   if (!open) return null;
 
