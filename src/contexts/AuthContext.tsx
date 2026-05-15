@@ -5,33 +5,68 @@ import type { User } from "@supabase/supabase-js";
 interface AuthState {
   user: User | null;
   loading: boolean;
+  error: string | null;
   signIn: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+const SESSION_TIMEOUT_MS = 8000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    let cancelled = false;
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setError("无法连接到认证服务，请检查网络后刷新页面");
+        setLoading(false);
+      }
+    }, SESSION_TIMEOUT_MS);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!cancelled) {
+          clearTimeout(timeout);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          clearTimeout(timeout);
+          setError("认证服务连接失败，请检查网络后刷新页面");
+          setLoading(false);
+        }
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (!cancelled) {
+        setUser(session?.user ?? null);
+        setError(null);
+      }
     });
 
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return error.message;
-    return null;
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) return signInError.message;
+      return null;
+    } catch {
+      return "登录请求失败，请检查网络连接";
+    }
   };
 
   const signOut = async () => {
@@ -39,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, error, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

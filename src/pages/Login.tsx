@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -12,12 +12,13 @@ export function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Already logged in
-  if (user) {
-    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
-    navigate(from, { replace: true });
-    return null;
-  }
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +32,8 @@ export function Login() {
     if (errMsg) {
       setError(errMsg);
       setLoading(false);
-    } else {
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
-      navigate(from, { replace: true });
     }
+    // On success, the user state change will trigger the useEffect redirect above
   };
 
   return (
