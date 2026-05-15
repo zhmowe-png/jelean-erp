@@ -5,40 +5,89 @@ async function loadXLSX() {
   return XLSX;
 }
 
+interface NoteMeta {
+  companyName: string;
+  companyEn: string;
+  customerName: string;
+  customerAddress: string;
+  deliveryNumber: string;
+  deliveryDate: string;
+  receiver: string;
+}
+
 /**
- * Export delivery items to Excel with proper filename.
- * xlsx is loaded dynamically to avoid bloating the initial bundle.
+ * Export a complete delivery note to Excel matching the print layout.
  */
-export async function exportDeliveryNote(
-  items: DeliveryItem[],
-  customerName: string,
-  deliveryNumber: string,
-) {
+export async function exportDeliveryNote(items: DeliveryItem[], meta: NoteMeta) {
   const XLSX = await loadXLSX();
 
-  const rows = items.map((it) => ({
-    "序号": it.seq,
-    "订单号": it.order_number || "",
-    "料号": it.material_code || "",
-    "品名": it.product_name,
-    "数量": it.quantity,
-    "单价": Number(it.unit_price),
-    "金额": Number(it.amount),
-    "备注": it.notes || "",
-  }));
+  const COLUMNS = 7;
+  const HEADER = ["序号", "订单号", "料号", "品名", "数量", "单价", "金额"];
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [
-    { wch: 6 }, { wch: 14 }, { wch: 12 }, { wch: 20 },
-    { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 20 },
+  const aoa: (string | number)[][] = [];
+
+  // --- Header ---
+  aoa.push([meta.companyName]);
+  aoa.push([meta.companyEn]);
+  aoa.push(["送  货  单"]);
+  aoa.push([]);
+
+  // --- Info line ---
+  aoa.push([
+    `客户：${meta.customerName}`,
+    `地址：${meta.customerAddress}`,
+    "",
+    "",
+    `单号：${meta.deliveryNumber}`,
+    `日期：${meta.deliveryDate}`,
+    "",
+  ]);
+  aoa.push([]);
+
+  // --- Table header ---
+  aoa.push(HEADER);
+
+  // --- Table body ---
+  const total = items.reduce((s, it) => s + Number(it.amount), 0);
+  for (const it of items) {
+    aoa.push([
+      it.seq,
+      it.order_number || "",
+      it.material_code || "",
+      it.product_name,
+      it.quantity,
+      Number(it.unit_price),
+      Number(it.amount),
+    ]);
+  }
+
+  // Pad to 8 rows
+  while (aoa.length < 8 + 8) {
+    aoa.push(["", "", "", "", "", "", ""]);
+  }
+
+  // --- Total ---
+  aoa.push(["", "", "", "合  计", "", "", total]);
+  aoa.push([]);
+  aoa.push([`收货单位及经手人：${meta.receiver || "_______________"}`]);
+  aoa.push(["送货单位及经手人：_______________"]);
+
+  // Build sheet
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Merge header rows across all 7 columns
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: COLUMNS - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: COLUMNS - 1 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: COLUMNS - 1 } },
   ];
 
-  const total = items.reduce((s, it) => s + Number(it.amount), 0);
-  XLSX.utils.sheet_add_aoa(ws, [["", "", "", "合计", "", "", total, ""]], { origin: -1 });
+  // Column widths (equal distribution)
+  ws["!cols"] = Array.from({ length: COLUMNS }, () => ({ wch: 16 }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "送货单");
-  XLSX.writeFile(wb, `${customerName}_${deliveryNumber}.xlsx`);
+  XLSX.writeFile(wb, `${meta.customerName}_${meta.deliveryNumber}.xlsx`);
 }
 
 /**

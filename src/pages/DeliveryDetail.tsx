@@ -59,7 +59,15 @@ export function DeliveryDetail() {
   const total = items.reduce((s, it) => s + Number(it.amount), 0);
 
   const handleExport = async () => {
-    await exportDeliveryNote(items, customer.name || "未知客户", deliveryNumber);
+    await exportDeliveryNote(items, {
+      companyName: "东莞市佳蓝纸品有限公司",
+      companyEn: "JeLan Paper Products Co., Ltd.",
+      customerName: customer.name || "",
+      customerAddress: customer.address || "",
+      deliveryNumber,
+      deliveryDate,
+      receiver: receiver || "",
+    });
   };
 
   return (
@@ -92,14 +100,14 @@ export function DeliveryDetail() {
           <h2 className="text-xl font-bold tracking-wider">
             东莞市佳蓝纸品有限公司
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">JeLan Paper Products Co., Ltd.</p>
+          <p className="text-sm text-gray-500 -mt-px">JeLan Paper Products Co., Ltd.</p>
           <h1 className="text-2xl font-bold mt-4 tracking-[0.5em]">
             送 货 单
           </h1>
         </div>
 
         {/* Info Line */}
-        <div className="flex justify-between text-sm mb-4 border-b border-dashed pb-3 print:border-black">
+        <div className="flex justify-between text-sm mb-4 pb-3">
           <div className="flex gap-6">
             <span>
               <span className="text-gray-500 print:text-gray-700">客户：</span>
@@ -123,30 +131,30 @@ export function DeliveryDetail() {
         </div>
 
         {/* Table */}
-        <table className="w-full text-sm border-collapse">
+        <table className="w-full table-fixed border-collapse text-base">
           <thead>
-            <tr className="border-y-2 border-black print:border-black">
-              <th className="py-2 px-2 text-center w-10">序号</th>
-              <th className="py-2 px-2 text-left">订单号</th>
-              <th className="py-2 px-2 text-left">料号</th>
-              <th className="py-2 px-2 text-left">品名</th>
-              <th className="py-2 px-2 text-right w-16">数量</th>
-              <th className="py-2 px-2 text-right w-20">单价(元)</th>
-              <th className="py-2 px-2 text-right w-24">金额(元)</th>
+            <tr className="border-y border-black print:border-black">
+              <th className="py-2 px-2 text-center">序号</th>
+              <th className="py-2 px-2 text-center">订单号</th>
+              <th className="py-2 px-2 text-center">料号</th>
+              <th className="py-2 px-2 text-center">品名</th>
+              <th className="py-2 px-2 text-center">数量</th>
+              <th className="py-2 px-2 text-center">单价</th>
+              <th className="py-2 px-2 text-center">金额</th>
             </tr>
           </thead>
           <tbody>
             {items.map((it) => (
-              <tr key={it.id} className="border-b border-gray-300 print:border-black">
+              <tr key={it.id}>
                 <td className="py-1.5 px-2 text-center">{it.seq}</td>
-                <td className="py-1.5 px-2">{it.order_number || ""}</td>
-                <td className="py-1.5 px-2 font-mono text-xs">{it.material_code || ""}</td>
-                <td className="py-1.5 px-2">{it.product_name}</td>
-                <td className="py-1.5 px-2 text-right">{it.quantity}</td>
-                <td className="py-1.5 px-2 text-right font-mono text-xs">
+                <td className="py-1.5 px-2 text-center">{it.order_number || ""}</td>
+                <td className="py-1.5 px-2 text-center">{it.material_code || ""}</td>
+                <td className="py-1.5 px-2 text-center">{it.product_name}</td>
+                <td className="py-1.5 px-2 text-center">{it.quantity}</td>
+                <td className="py-1.5 px-2 text-center">
                   {Number(it.unit_price).toFixed(4)}
                 </td>
-                <td className="py-1.5 px-2 text-right font-mono">
+                <td className="py-1.5 px-2 text-center">
                   {Number(it.amount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
@@ -154,7 +162,7 @@ export function DeliveryDetail() {
             {/* Pad to 8 rows for print */}
             {items.length < 8 &&
               Array.from({ length: 8 - items.length }).map((_, i) => (
-                <tr key={`pad-${i}`} className="border-b border-gray-300 print:border-black">
+                <tr key={`pad-${i}`}>
                   <td className="py-1.5 px-2">&nbsp;</td>
                   <td className="py-1.5 px-2"></td>
                   <td className="py-1.5 px-2"></td>
@@ -181,11 +189,6 @@ export function DeliveryDetail() {
           <div>
             送货单位及经手人：_______________
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center text-xs text-gray-400 mt-6 print:text-gray-500">
-          东莞市佳蓝纸品有限公司 | 地址：东莞市 | 电话：_______________
         </div>
       </div>
     </div>
