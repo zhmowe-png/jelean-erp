@@ -195,7 +195,7 @@ export function Billing() {
               东莞市佳蓝纸品有限公司
             </h1>
             <p className="text-center text-sm mt-1">
-              {y}年{m}月数据-对账单
+              {y}年{m}月-对账单
             </p>
             <p className="text-sm mt-2">
               客户名称：{selectedCustomer?.name}
